@@ -1,4 +1,4 @@
- package Assignment5;
+package Assignment5;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -42,9 +42,14 @@ public class QLearningAgent extends Agent {
 	private static final long serialVersionUID = -4047208702628325380L;
 	private static final Logger logger = Logger.getLogger(QLearningAgent.class.getCanonicalName());
 
+	private double totalCumulativeReward = 0;
 	private double cumulativeReward = 0;
 	private double[] weights;
-	private double maximumPredictedReward = 0;
+	private double totalPredictedReward = 0;
+	private int episode = 1;
+	private int learningEpisodes = 10;
+	private int learningEpisodesInterval = 9;
+	private int testingEpisodesInterval = 4;
 	private double alpha = .0001;
 	private double discount = .9;
 	private double epsilon = .02;
@@ -53,9 +58,11 @@ public class QLearningAgent extends Agent {
 	private int maxStepInterval = 10;
 	private Map<Integer, Integer> footmenTargets;
 	private StateView currentState;
+	private String savedFile = "save.ser";
 	
 	public QLearningAgent(int playernum, String[] arguments) {
 		super(playernum);
+		learningEpisodes = Integer.parseInt(arguments[0]);
 	}
 
 	@Override
@@ -63,6 +70,8 @@ public class QLearningAgent extends Agent {
 		step = -1;
 		footmenTargets = new HashMap<Integer, Integer>();
 		currentState = newstate;
+		weights = generateWeights();
+		//loadData();
 		return middleStep(newstate, statehistory);
 	}
 
@@ -70,15 +79,15 @@ public class QLearningAgent extends Agent {
 	public Map<Integer,Action> middleStep(StateView newState, History.HistoryView statehistory) {
 		step++;
 		currentState = newState;
-		updateWeights(statehistory);
 		double reward = getReward(statehistory);
+		updateWeights(reward);
 		boolean reassignActions = eventOccured(statehistory);
 		Map<Integer,Action> actions = new HashMap<Integer, Action>();
 		if(reassignActions){
 			actions = getFootmenActions();
 			lastEvent = step;
 		}
-		cumulativeReward = reward;
+		cumulativeReward += reward;
 		return actions;
 	}
 
@@ -91,7 +100,7 @@ public class QLearningAgent extends Agent {
 	private Map<Integer, Action> getFootmenActions(List<UnitView> friendlies, List<UnitView> enemies){
 		Map<Integer, Action> actions = new HashMap<Integer, Action>();
 		footmenTargets = new HashMap<Integer, Integer>();
-		
+		double sumReward = 0;
 		for(UnitView friendly : friendlies){
 			UnitView bestEnemy = null;
 			double bestReward = 0;
@@ -108,6 +117,7 @@ public class QLearningAgent extends Agent {
 					}
 				}
 			}
+			sumReward += bestReward;
 			Random generator = new Random();
 			double probability = generator.nextDouble();
 			UnitView enemy = bestEnemy;
@@ -115,6 +125,7 @@ public class QLearningAgent extends Agent {
 			actions.put(friendly.getID(), Action.createCompoundAttack(friendly.getID(), enemy.getID()));
 			footmenTargets.put(friendly.getID(), enemy.getID());
 		}
+		totalPredictedReward = sumReward;
 		return actions;
 	}
 	
@@ -129,11 +140,59 @@ public class QLearningAgent extends Agent {
 	
 	// Gets the reward for the new state
 	private double getReward(History.HistoryView stateHistory){
-		return -.1;
+		double reward = 0;
+		List<DeathLog> friendlyDeaths = getDeaths(stateHistory, playernum);
+		List<DeathLog> enemyDeaths = getDeaths(stateHistory, getEnemyId());
+		List<DamageLog> friendlyDamages = getDamage(stateHistory, playernum);
+		List<DamageLog> enemyDamages = getDamage(stateHistory, getEnemyId());
+		
+		for(DeathLog friendlyDeath : friendlyDeaths){
+			reward -= 100;
+		}
+		
+		for(DeathLog enemyDeath : enemyDeaths){
+			reward += 100;
+		}
+		
+		for(DamageLog friendlyDamage : friendlyDamages){
+			reward -= friendlyDamage.getDamage();
+		}
+		
+		for(DamageLog enemyDamage : enemyDamages){
+			reward += enemyDamage.getDamage();
+		}
+		
+		reward -= .1;
+		return reward;
 	}
 	
-	private void updateWeights(History.HistoryView stateHistory){
+	private List<DeathLog> getDeaths(HistoryView stateHistory, int playerNumber){
+		List<DeathLog> deaths = new ArrayList<DeathLog>();
+		List<DeathLog> allDeaths = stateHistory.getDeathLogs(step-1);
 		
+		for(DeathLog log : allDeaths){
+			if(log.getController() == playerNumber){
+				deaths.add(log);
+			}
+		}
+		return deaths;
+	}
+	
+	private List<DamageLog> getDamage(HistoryView stateHistory, int playerNumber){
+		List<DamageLog> damages = new ArrayList<DamageLog>();
+		List<DamageLog> allDamages = stateHistory.getDamageLogs(step-1);
+		
+		for(DamageLog log : allDamages){
+			if(log.getDefenderController() == playerNumber){
+				damages.add(log);
+			}
+		}
+		return damages;
+	}
+	private void updateWeights(double reward){
+		for(int i = 0; i< weights.length; i++){
+			weights[i] = weights[i] + alpha*(reward - totalPredictedReward);
+		}
 	}
 	
 	// Events:
@@ -176,6 +235,16 @@ public class QLearningAgent extends Agent {
 	}
 	
 	/// HELPERS
+	
+	private double[] generateWeights(){
+		double[] w = new double[6];
+		Random generator = new Random();
+		for(int i = 0; i<w.length; i++){
+			w[i] = (generator.nextDouble() -.5)*2;
+		}
+		return w;
+	}
+	
 	private List<UnitView> getFootmen(int playerNumber){
 		List<UnitView> units = currentState.getUnits(playerNumber);
 		Iterator<UnitView> itr = units.iterator();
@@ -206,14 +275,50 @@ public class QLearningAgent extends Agent {
 		System.out.println(unit.getTemplateView().getName() + "(" + unit.getID() + ") - (" + unit.getXPosition() + ", " + unit.getYPosition() + ")");
 	}
 	
+	private void printWeights(double[] w){
+		System.out.println("Weights:");
+		for(int i = 0; i<w.length; i++){
+			System.out.println(w[i]);
+		}
+	}
+	
 	@Override
 	public void terminalStep(StateView newstate, History.HistoryView statehistory) {
 		step++;
+		/*try{
+			ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(savedFile));
+			savePlayerData(out);
+			out.flush();
+			out.close();
+		}
+		catch(Exception e){
+			writeLineVisual("There was a problem saving the file. Saving could not be completed at this time");
+		}*/
+		
 		if(logger.isLoggable(Level.FINE))
 		{
 			logger.fine("Congratulations! You have finished the task!");
 		}
-		System.out.println("=> Step: " + step);
+		if(episode>= learningEpisodes){
+			System.exit(0);
+		}
+		else if(learningEpisodesInterval >0){
+			alpha = .0001;
+			learningEpisodesInterval--; 
+			episode++;
+		}
+		else if(testingEpisodesInterval > 0){
+			alpha = 0;
+			testingEpisodesInterval--;
+			totalCumulativeReward += cumulativeReward;
+		}
+		else{
+			System.out.println(episode + ": " + totalCumulativeReward/5);
+			totalCumulativeReward = 0;
+			learningEpisodesInterval = 10;
+			testingEpisodesInterval = 5;
+		}
+		cumulativeReward = 0;
 	}
 
 	public static String getUsage() {
@@ -222,12 +327,40 @@ public class QLearningAgent extends Agent {
 	
 	@Override
 	public void savePlayerData(OutputStream os) {
-		//this agent lacks learning and so has nothing to persist.
-		
+		try{
+			ObjectOutputStream o = (ObjectOutputStream) os;
+			o.writeObject(weights);
+			o.writeDouble(epsilon);
+			o.writeDouble(cumulativeReward);
+			o.writeInt(episode+1);
+		}
+		catch(Exception ex){
+			writeLineVisual("There was a problem writing to the output file. Saving could not be completed at this time");
+		}
+	}
+	
+	private void loadData(){
+		try{
+			ObjectInputStream in = new ObjectInputStream(new FileInputStream(savedFile));
+			loadPlayerData(in);
+			in.close();
+		}
+		catch(Exception ex){
+			writeLineVisual("Could not find any saved file.");
+		}
 	}
 	
 	@Override
 	public void loadPlayerData(InputStream is) {
-		//this agent lacks learning and so has nothing to persist.
+		try{
+			ObjectInputStream in = (ObjectInputStream)is;
+			weights = (double[])in.readObject();
+			epsilon = (double)in.readDouble();
+			cumulativeReward = (double)in.readDouble();
+			episode = (int)in.readInt();
+		}
+		catch(Exception ex){
+			writeLineVisual("There was a problem loading the saved file. The file could not be loaded");
+		}
 	}
 }

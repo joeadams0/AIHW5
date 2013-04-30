@@ -28,23 +28,23 @@ public class Learner{
 		return featureArray;
 	}
 
-	public double friendlysAttackingE(StateView s, int fId, int eId){
-		
+	public static double friendlysAttackingE(StateView s, int fId, int eId){
+		return 0;
 	}
-	public double healthOfF(StateView s, int fId, int eId){
-	
+	public static double healthOfF(StateView s, int fId, int eId){
+		return 0;
 	}
-	public double healthOfE(StateView s, int fId, int eId){
-
+	public static double healthOfE(StateView s, int fId, int eId){
+		return 0;
 	}
-	public double fAttackingE(StateView s, int fId, int eId){
-
+	public static double fAttackingE(StateView s, int fId, int eId){
+		return 0;
 	}
-	public double EclosestEnemy(StateView s, int fId, int eId){
-
+	public static double EclosestEnemy(StateView s, int fId, int eId){
+		return 0;
 	}
-	public double FclosestFriendly(StateView s, int fId, int eId){
-	
+	public static double FclosestFriendly(StateView s, int fId, int eId){
+		return 0;
 	}
 	
 	public static double reward(int enemiesKilled, int friendliesKilled, int friendlyDamage, int enemyDamage, int moves_required){
