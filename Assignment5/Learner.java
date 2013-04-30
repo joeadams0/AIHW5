@@ -1,6 +1,8 @@
 package Assignment5;
 
-public class ProbabilityMap{
+import edu.cwru.sepia.environment.model.state.State.StateView;
+
+public class Learner{
 	
 	public static double[] features(StateView s, int fId, int eId){
 		double[] featureArray = new double[6];
@@ -37,17 +39,19 @@ public class ProbabilityMap{
 		return enemiesKilled*100 - friendliesKilled*100 + enemyDamage - friendlyDamage - ((double)moves_required)*.01;
 	}
 
-	public static double Q(StateView s, int fId, int eId, double[] weights, double[] ogWeights){
+	public static double Q(StateView s, int fId, int eId, double[] weights, double ogWeights){
 		//Q(s, a) = w * f(s, a) +w0
 		double q = dotProduct(features(s, fId, eId), weights) + ogWeights;
 		return q;
 	}
+	
 	public static double dotProduct(double[] a, double[] b){
-		if( a.size != b.size)
+		if( a.length != b.length)
 			return 0;
-		int prod = 0;
-		for(int i = 0; i<a.size; i++){
+		double prod = 0;
+		for(int i = 0; i<a.length; i++){
 			prod += a[i]*b[i];
+		}
 		return prod;
 	}
 }
