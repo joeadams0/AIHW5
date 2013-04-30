@@ -34,7 +34,7 @@ public class Learner{
 
 	public static double Q(StateView s, int fId, int eId, double[] weights, double ogWeights){
 		//Q(s, a) = w * f(s, a) +w0
-		double q = dotProduct(features(s, fId, eId), weights) + ogWeights;
+		//double q = dotProduct(features(s, fId, eId), weights) + ogWeights;
 		return 0.0;
 	}
 	

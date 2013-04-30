@@ -10,7 +10,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Iterator;
 import java.io.*;
-import java.util.PriorityQueue;		
+import java.util.PriorityQueue;	
+import java.util.Random;	
 
 import edu.cwru.sepia.action.Action;
 import edu.cwru.sepia.action.ActionType;
@@ -50,6 +51,7 @@ public class QLearningAgent extends Agent {
 	private int step;
 	private int lastEvent = -10;
 	private int maxStepInterval = 10;
+	private Map<Integer, Integer> footmenTargets;
 	private StateView currentState;
 	
 	public QLearningAgent(int playernum, String[] arguments) {
@@ -59,6 +61,7 @@ public class QLearningAgent extends Agent {
 	@Override
 	public Map<Integer, Action> initialStep(StateView newstate, History.HistoryView statehistory) {
 		step = -1;
+		footmenTargets = new HashMap<Integer, Integer>();
 		currentState = newstate;
 		return middleStep(newstate, statehistory);
 	}
@@ -72,7 +75,7 @@ public class QLearningAgent extends Agent {
 		boolean reassignActions = eventOccured(statehistory);
 		Map<Integer,Action> actions = new HashMap<Integer, Action>();
 		if(reassignActions){
-			actions = getFootmanActions();
+			actions = getFootmenActions();
 			lastEvent = step;
 		}
 		cumulativeReward = reward;
@@ -80,9 +83,48 @@ public class QLearningAgent extends Agent {
 	}
 
 	// Return the map of the actions to take for each friendly footman.
-	private Map<Integer, Action> getFootmanActions(){
-		Map<Integer, Action> actions = new HashMap<Integer, Action>();
+	private Map<Integer, Action> getFootmenActions(){
+		Map<Integer, Action> actions = getFootmenActions(getFootmen(playernum), getFootmen(getEnemyId()));
 		return actions;
+	}
+	
+	private Map<Integer, Action> getFootmenActions(List<UnitView> friendlies, List<UnitView> enemies){
+		Map<Integer, Action> actions = new HashMap<Integer, Action>();
+		footmenTargets = new HashMap<Integer, Integer>();
+		
+		for(UnitView friendly : friendlies){
+			UnitView bestEnemy = null;
+			double bestReward = 0;
+			for(UnitView enemy : enemies){
+				if(bestEnemy == null){
+					bestEnemy = enemy;
+					bestReward = Q(friendly, enemy);
+				}
+				else{
+					double reward = Q(friendly, enemy);
+					if(reward > bestReward){
+						bestReward = reward;
+						bestEnemy = enemy;
+					}
+				}
+			}
+			Random generator = new Random();
+			double probability = generator.nextDouble();
+			UnitView enemy = bestEnemy;
+			enemy = randomUnit(enemies);
+			actions.put(friendly.getID(), Action.createCompoundAttack(friendly.getID(), enemy.getID()));
+			footmenTargets.put(friendly.getID(), enemy.getID());
+		}
+		return actions;
+	}
+	
+	private double Q(UnitView friendly, UnitView enemy){
+		return Learner.Q(currentState, friendly.getID(), enemy.getID(), weights, 0);
+	}
+	
+	private UnitView randomUnit(List<UnitView> units){
+		Random generator = new Random();
+		return units.get(generator.nextInt(units.size()));
 	}
 	
 	// Gets the reward for the new state
@@ -134,8 +176,8 @@ public class QLearningAgent extends Agent {
 	}
 	
 	/// HELPERS
-	private List<UnitView> getFootmen(StateView state, int playerNumber){
-		List<UnitView> units = state.getUnits(playerNumber);
+	private List<UnitView> getFootmen(int playerNumber){
+		List<UnitView> units = currentState.getUnits(playerNumber);
 		Iterator<UnitView> itr = units.iterator();
 		while(itr.hasNext()){
 			if(!(itr.next().getTemplateView().getName().equals("Footman"))){
