@@ -130,7 +130,7 @@ public class QLearningAgent extends Agent {
 	}
 	
 	private double Q(UnitView friendly, UnitView enemy){
-		return Learner.Q(currentState, footmenTargets, friendly.getID(), enemy.getID(), weights, 0);
+		return Q(currentState, footmenTargets, friendly.getID(), enemy.getID(), weights, getFootmen(playernum), getFootmen(getEnemyId()));
 	}
 	
 	private UnitView randomUnit(List<UnitView> units){
@@ -363,4 +363,88 @@ public class QLearningAgent extends Agent {
 			writeLineVisual("There was a problem loading the saved file. The file could not be loaded");
 		}
 	}
+	public static double[] features(StateView s, int fId, int eId, List<UnitView> friendlies, List<UnitView> enemies){
+                double[] featureArray = new double[6];
+
+                //# of friendlies attacking e
+                featureArray[0]=friendlysAttackingE(s, fId, eId, friendlies, enemies);
+
+                //health of friendly f
+                featureArray[1]=healthOfE(s, fId, eId, friendlies, enemies);
+
+                //health of enemy e
+                featureArray[2]=healthOfF(s, fId, eId, friendlies, enemies);
+
+                //is  e the enemy f is attacking
+                featureArray[3]=fAttackingE(s, fId, eId, friendlies, enemies);
+
+                //is e the closest to f
+                featureArray[4]=EclosestEnemy(s, fId, eId, friendlies, enemies);
+
+                //is f the closet to e
+                featureArray[5]=FclosestFriendly(s, fId, eId, friendlies, enemies);
+
+                return featureArray;
+        }
+
+        private static boolean isAdjacentTo(StateView state, int id, int otherId){
+                return (Math.abs((state.getUnit(id).getXPosition() - state.getUnit(id).getXPosition())) <= 1 && Math.abs(state.getUnit(id).getYPosition() - state.getUnit(id).getYPosition()) <=1);
+        }
+        private static double dist(StateView state, int id, int otherId){
+                return Math.max(Math.abs(state.getUnit(id).getXPosition() - state.getUnit(id).getXPosition()), Math.abs(state.getUnit(id).getYPosition() - state.getUnit(id).getYPosition()));
+        }
+        private static double friendlysAttackingE(StateView s, int fId, int eId, List<UnitView> friendlies, List<UnitView> enemies){
+                double friendlyCount = 0.0;
+		for(UnitView f : friendlies){
+			if(isAdjacentTo(s, f.getID(), eId))
+				friendlyCount ++;
+		}
+		return friendlyCount;
+        }
+        private static double healthOfF(StateView s, int fId, int eId, List<UnitView> friendlies, List<UnitView> enemies){
+                return s.getUnit(fId).getHP();
+        }
+        private static double healthOfE(StateView s, int fId, int eId, List<UnitView> friendlies, List<UnitView> enemies){
+                return s.getUnit(eId).getHP();
+        }
+        private static double fAttackingE(StateView s, int fId, int eId, List<UnitView> friendlies, List<UnitView> enemies){
+                if( isAdjacentTo(s, eId, fId))
+			return 1.0;
+		return 0.0;
+        }
+        private static double EclosestEnemy(StateView s, int fId, int eId, List<UnitView> friendlies, List<UnitView> enemies){
+                //loop through enemies, if x.id != eid and x is closer, false
+		for(UnitView e : enemies){
+			if((eId != e.getID()) && dist(s, e.getID(), fId) < dist(s, eId, fId))
+				return 0;
+		}
+		return 1;
+        }
+        private static double FclosestFriendly(StateView s, int fId, int eId, List<UnitView> friendlies, List<UnitView> enemies){
+                for(UnitView f : friendlies){
+                        if((f.getID() != fId ) && dist(s, eId, f.getID()) < dist(s, eId, fId))
+                                return 0;
+                }
+                return 1;
+        }
+
+        private static double reward(int enemiesKilled, int friendliesKilled, int friendlyDamage, int enemyDamage, int moves_required){
+                return enemiesKilled*100 - friendliesKilled*100 + enemyDamage - friendlyDamage - ((double)moves_required)*.01;
+        }
+
+        private static double Q(StateView s, Map<Integer, Integer> footmenTargets, int fId, int eId, double[] weights, List<UnitView> friendlies, List<UnitView> enemies){
+                //Q(s, a) = w * f(s, a) +w0
+                double q = dotProduct(features(s, fId, eId, friendlies, enemies), weights);
+                return q;
+        }
+	private static double dotProduct(double[] a, double[] b){
+                if( a.length != b.length)
+                        return 0;
+                double prod = 0;
+                for(int i = 0; i<a.length; i++){
+                        prod += a[i]*b[i];
+                }
+                return prod;
+        }
+
 }
