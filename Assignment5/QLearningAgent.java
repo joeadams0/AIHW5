@@ -130,7 +130,7 @@ public class QLearningAgent extends Agent {
 	}
 	
 	private double Q(UnitView friendly, UnitView enemy){
-		return Learner.Q(currentState, friendly.getID(), enemy.getID(), weights, 0);
+		return Learner.Q(currentState, footmenTargets, friendly.getID(), enemy.getID(), weights, 0);
 	}
 	
 	private UnitView randomUnit(List<UnitView> units){

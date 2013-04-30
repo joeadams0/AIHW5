@@ -51,7 +51,7 @@ public class Learner{
 		return enemiesKilled*100 - friendliesKilled*100 + enemyDamage - friendlyDamage - ((double)moves_required)*.01;
 	}
 
-	public static double Q(StateView s, int fId, int eId, double[] weights, double ogWeights){
+	public static double Q(StateView s, Map<Integer, Integer> footmenTargets, int fId, int eId, double[] weights, double ogWeights){
 		//Q(s, a) = w * f(s, a) +w0
 		double q = dotProduct(features(s, fId, eId), weights) + ogWeights;
 		return q;
