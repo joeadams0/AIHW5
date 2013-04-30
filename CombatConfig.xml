@@ -3,7 +3,14 @@
 	<Player Id="0">
 		<AgentClass>
 			<ClassName>Assignment5.QLearningAgent</ClassName>
-			<Argument>21</Argument>
+			<Argument>20</Argument>
+		</AgentClass>
+	</Player>
+	<Player Id="0">
+		<AgentClass>
+			<ClassName>edu.cwru.sepia.agent.visual.VisualAgent</ClassName>
+			<Argument>true</Argument>
+			<Argument>false</Argument>
 		</AgentClass>
 	</Player>
 	<Player Id="1">
