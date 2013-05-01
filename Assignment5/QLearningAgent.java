@@ -121,7 +121,9 @@ public class QLearningAgent extends Agent {
 			Random generator = new Random();
 			double probability = generator.nextDouble();
 			UnitView enemy = bestEnemy;
-			enemy = randomUnit(enemies);
+			if(probability<epsilon){
+				enemy = randomUnit(enemies);
+			}
 			actions.put(friendly.getID(), Action.createCompoundAttack(friendly.getID(), enemy.getID()));
 			footmenTargets.put(friendly.getID(), enemy.getID());
 		}
